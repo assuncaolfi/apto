@@ -23,12 +23,18 @@ fetch <- function(url) {
 
 # Data -------------------------------------------------------------------------
 
-urls <- read_lines("data/url.txt")
+grid <- expand_grid(
+  url = read_lines("data/url.txt"),
+  pag = as.character(1:3)
+)
+urls <- with(
+  grid,
+  map2_chr(url, pag, str_replace_all, pattern = "<PAGINA>")
+)
 aptos <- urls |>
   map(fetch) |>
   bind_rows() |>
   clean_names() |>
-  print() |>
   rename(id = imovel_san_id) |>
   distinct(id, .keep_all = TRUE)
 
@@ -42,12 +48,17 @@ data <- aptos |>
     valor_total <= 2300
   ) |>
   mutate(
-    bairro = nome_bairro,
     data_atualizacao = as.character(data_atualizacao),
-    url = file.path("https://netimoveis.com", url_detalhe_imovel)
+    bairro = nome_bairro,
+    ponto_real = round(pontuacao / valor_total),
+    url = file.path("https://netimoveis.com", url_detalhe_imovel),
   ) |>
   arrange(data_atualizacao, valor_total) |>
-  select(id, data_atualizacao, valor_total, bairro, url) |>
+  select(
+    id, data_atualizacao, bairro,
+    valor_total, pontuacao, ponto_real,
+    url
+  ) |>
   print()
 
 # Telegram ---------------------------------------------------------------------
