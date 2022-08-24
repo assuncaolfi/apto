@@ -23,7 +23,7 @@ jobs:
       with:
         cache-version: 0
       env:
-        RENV_CONFIG_REPOS_OVERRIDE: ${{ env.RSPM }}
+        RENV_CONFIG_REPOS_OVERRIDE: "https://packagemanager.rstudio.com/all/latest"
     - name: Run apto
       run: Rscript main.R
       env:
