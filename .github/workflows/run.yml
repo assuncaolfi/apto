@@ -25,7 +25,6 @@ jobs:
       with:
         cache-version: 0
       env:
-        RENV_CONFIG_PAK_ENABLED: "TRUE"
         RENV_CONFIG_REPOS_OVERRIDE: "https://packagemanager.rstudio.com/all/latest"
     - name: Run apto
       run: Rscript main.R
