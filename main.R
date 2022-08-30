@@ -1,5 +1,6 @@
 # Libraries --------------------------------------------------------------------
 
+library(hablar)
 library(httr2)
 library(janitor)
 library(jsonlite)
@@ -11,66 +12,74 @@ library(tidyverse)
 
 # Functions --------------------------------------------------------------------
 
-fetch <- function(url) {
-  url |>
-    httr2::request() |>
-    httr2::req_perform() |>
-    httr2::resp_body_string() |>
-    jsonlite::fromJSON() |>
-    purrr::chuck("lista") |>
-    dplyr::as_tibble()
+wrangle <- function(data) {
+  listing <- flatten(data$listing)
+  required <- c(
+    "externalId", "pricingInfos", "neighborhood",
+    "bathrooms", "bedrooms", "suites", "parkingSpaces",
+    "totalAreas"
+  )
+  if (!all(required %in% names(listing))) return(NULL)
+  with(
+    listing,
+    tibble(
+      id = externalId,
+      aluguel = pricingInfos$price,
+      bairro = neighborhood,
+      area = totalAreas,
+      banheiros = bathrooms,
+      condominio = pricingInfos$monthlyCondoFee,
+      iptu = pricingInfos$yearlyIptu,
+      quartos = bedrooms,
+      suites = suites,
+      vagas = parkingSpaces,
+      link = data$link$href
+    )
+  )
 }
 
-# Data -------------------------------------------------------------------------
+# Wrangle ----------------------------------------------------------------------
 
-grid <- expand_grid(
-  url = read_lines("data/url.txt"),
-  pag = as.character(1:3)
-)
-urls <- with(
-  grid,
-  map2_chr(url, pag, str_replace_all, pattern = "<PAGINA>")
-)
-aptos <- urls |>
-  map(fetch) |>
+url <- read_lines("data/url.txt")
+json <- url |>
+  request() |>
+  req_headers(`x-domain` = "www.vivareal.com.br") |>
+  req_perform() |>
+  resp_body_json()
+
+path <- "data/aptos.rds"
+old <- read_rds(path)
+aptos <- json |>
+  chuck("search") |>
+  chuck("result") |>
+  chuck("listings") |>
+  map(wrangle) |>
   bind_rows() |>
-  clean_names() |>
-  rename(id = imovel_san_id) |>
-  distinct(id, .keep_all = TRUE)
-
-data <- aptos |>
+  retype() |>
   mutate(
-    data_atualizacao = as_date(as_datetime(data_hora)),
-    valor_total = valor_locacao + valor_condominio + valor_iptu
+    preco = aluguel + condominio + iptu / 12,
+    link = file.path("vivareal.com.br", link)
   ) |>
   filter(
-    data_atualizacao == today(),
-    valor_total <= 2300
+    banheiros >= 2,
+    preco <= 2300,
+    quartos >= 2,
+    suites >= 1,
+    vagas >= 1
   ) |>
-  mutate(
-    data_atualizacao = as.character(data_atualizacao),
-    bairro = nome_bairro,
-    ponto_real = round(pontuacao / valor_total),
-    url = file.path("https://netimoveis.com", url_detalhe_imovel),
-  ) |>
-  arrange(data_atualizacao, valor_total) |>
-  select(
-    id, data_atualizacao, bairro,
-    valor_total, pontuacao, ponto_real,
-    url
-  ) |>
+  anti_join(old, by = "id") |>
+  write_rds(path) |>
   print()
 
 # Telegram ---------------------------------------------------------------------
 
 bot <- TGBot$new(token = bot_token("aptobot"))
 bot$set_default_chat_id("-763183926")
-msg <- paste(as.character(kable(data, "simple")), collapse = "%0A")
 
 sep <- "\n"
-data |>
+aptos |>
   pmap(list) |>
   map(function(x) paste(names(x), "=", x)) |>
   map_chr(paste, collapse = sep) |>
-  paste(collapse = paste0(sep, sep)) |>
-  bot$sendMessage()
+  print() |>
+  map(bot$sendMessage)

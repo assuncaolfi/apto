@@ -2,7 +2,7 @@ name: run
 on:
   push:
   schedule:
-    - cron: '00 01 * * *'
+    - cron: '00 10 * * *'
 concurrency:
   group: ${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout Git
       uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.PAT }}
     - name: Install dependencies
       run: sudo apt-get install -y libcurl4-openssl-dev
     - name: Setup R
@@ -28,3 +30,12 @@ jobs:
       run: Rscript main.R
       env:
         R_TELEGRAM_BOT_aptobot: ${{ secrets.R_TELEGRAM_BOT_aptobot }}
+    - name: Push Changes
+      continue-on-error: true
+      run: |-
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git add .
+        git commit -m "update data"
+        git pull
+        git push
