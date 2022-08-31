@@ -56,10 +56,7 @@ aptos <- json |>
   map(wrangle) |>
   bind_rows() |>
   retype() |>
-  mutate(
-    preco = aluguel + condominio + iptu / 12,
-    link = file.path("vivareal.com.br", link)
-  ) |>
+  mutate(preco = aluguel + condominio + iptu / 12) |>
   filter(
     banheiros >= 2,
     preco <= 2300,
@@ -67,10 +64,13 @@ aptos <- json |>
     suites >= 1,
     vagas >= 1
   ) |>
+  mutate(link = file.path("vivareal.com.br", link)) |>
   anti_join(old, by = "id") |>
-  print(n = 10)
+  select(id, preco, quartos, banheiros, suites, vagas, link) |>
+  arrange(desc(preco)) |>
+  print(n = Inf)
 old |>
-  bind_rows(apto) |>
+  bind_rows(aptos) |>
   write_rds(path)
 
 # Telegram ---------------------------------------------------------------------
