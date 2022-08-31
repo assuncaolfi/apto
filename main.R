@@ -68,18 +68,17 @@ aptos <- json |>
     vagas >= 1
   ) |>
   anti_join(old, by = "id") |>
-  write_rds(path) |>
-  print()
+  print(n = 10)
+old |>
+  bind_rows(apto) |>
+  write_rds(path)
 
 # Telegram ---------------------------------------------------------------------
 
 bot <- TGBot$new(token = bot_token("aptobot"))
 bot$set_default_chat_id("-763183926")
-
-sep <- "\n"
 aptos |>
   pmap(list) |>
   map(function(x) paste(names(x), "=", x)) |>
-  map_chr(paste, collapse = sep) |>
-  print() |>
-  map(bot$sendMessage)
+  map_chr(paste, collapse = "\n") |>
+  walk(bot$sendMessage)
