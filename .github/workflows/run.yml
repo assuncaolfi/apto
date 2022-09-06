@@ -1,7 +1,7 @@
 name: run
 on:
   schedule:
-    - cron: '30 14 * * *'
+    - cron: '00 10 * * *'
 concurrency:
   group: ${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
