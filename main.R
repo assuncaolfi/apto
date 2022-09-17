@@ -43,7 +43,13 @@ regions <- c(
 )
 
 path <- "data/aptos.rds"
+if (file.exists(path)) {
+  old <- read_rds(path)
+} else {
+  old <- tibble(id = 0)
+}
 old <- read_rds(path)
+
 aptos <- data |>
   filter(
     bedrooms >= 2,
@@ -58,6 +64,7 @@ aptos <- data |>
   select(totalCost, regionName, bedrooms, url) |>
   arrange(desc(totalCost)) |>
   print(n = Inf)
+
 old |>
   bind_rows(aptos) |>
   write_rds(path)
