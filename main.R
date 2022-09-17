@@ -1,5 +1,6 @@
 # Libraries --------------------------------------------------------------------
 
+library(glue)
 library(hablar)
 library(httr2)
 library(janitor)
@@ -10,64 +11,52 @@ library(readr)
 library(telegram)
 library(tidyverse)
 
-# Functions --------------------------------------------------------------------
-
-wrangle <- function(data) {
-  listing <- flatten(data$listing)
-  required <- c(
-    "externalId", "pricingInfos", "neighborhood",
-    "bathrooms", "bedrooms", "suites", "parkingSpaces",
-    "totalAreas"
-  )
-  if (!all(required %in% names(listing))) return(NULL)
-  with(
-    listing,
-    tibble(
-      id = externalId,
-      aluguel = pricingInfos$price,
-      bairro = neighborhood,
-      area = totalAreas,
-      banheiros = bathrooms,
-      condominio = pricingInfos$monthlyCondoFee,
-      iptu = pricingInfos$yearlyIptu,
-      quartos = bedrooms,
-      suites = suites,
-      vagas = parkingSpaces,
-      link = data$link$href
-    )
-  )
-}
-
 # Wrangle ----------------------------------------------------------------------
 
-url <- read_lines("data/url.txt")
-json <- url |>
+data <- "data/url.txt" |>
+  read_lines() |>
   request() |>
-  req_headers(`x-domain` = "www.vivareal.com.br") |>
   req_perform() |>
-  resp_body_json()
+  resp_body_json() |>
+  chuck("hits") |>
+  chuck("hits") |>
+  map("_source") |>
+  map(flatten) |>
+  map(as_tibble, .name_repair = "minimal") |>
+  bind_rows()
+
+regions <- c(
+  "Anchieta",
+  "Carmo",
+  "Cidade Jardim",
+  "Cruzeiro",
+  "Floresta",
+  "Luxemburgo",
+  "Prado",
+  "Sagrada Família",
+  "Santa Efigenia",
+  "Santa Tereza",
+  "Santo Antônio",
+  "Sion",
+  "São Lucas",
+  "São Pedro"
+)
 
 path <- "data/aptos.rds"
 old <- read_rds(path)
-aptos <- json |>
-  chuck("search") |>
-  chuck("result") |>
-  chuck("listings") |>
-  map(wrangle) |>
-  bind_rows() |>
-  retype() |>
-  mutate(preco = aluguel + condominio + iptu / 12) |>
+aptos <- data |>
   filter(
-    banheiros >= 2,
-    preco <= 2300,
-    quartos >= 2,
-    suites >= 1,
-    vagas >= 1
+    bedrooms >= 2,
+    forRent == TRUE,
+    regionName %in% regions,
+    parkingSpaces >= 1,
+    totalCost <= 2400
   ) |>
-  mutate(link = file.path("vivareal.com.br", link)) |>
+  print() |>
+  mutate(url = glue("https://www.quintoandar.com.br/imovel/{id}/")) |>
   anti_join(old, by = "id") |>
-  select(id, preco, quartos, banheiros, suites, vagas, link) |>
-  arrange(desc(preco)) |>
+  select(totalCost, regionName, bedrooms, url) |>
+  arrange(desc(totalCost)) |>
   print(n = Inf)
 old |>
   bind_rows(aptos) |>
