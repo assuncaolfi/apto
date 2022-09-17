@@ -48,7 +48,6 @@ if (file.exists(path)) {
 } else {
   old <- tibble(id = 0)
 }
-old <- read_rds(path)
 
 aptos <- data |>
   filter(
