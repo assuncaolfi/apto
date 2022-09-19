@@ -22,7 +22,14 @@ data <- "data/url.txt" |>
   chuck("hits") |>
   map("_source") |>
   map(flatten) |>
-  map(as_tibble, .name_repair = "minimal") |>
+  map(
+    as_tibble,
+    .name_repair = ~ vctrs::vec_as_names(
+      ...,
+      repair = "unique",
+      quiet = TRUE
+    )
+  ) |>
   bind_rows()
 
 regions <- c(
@@ -42,9 +49,9 @@ regions <- c(
   "São Pedro"
 )
 
-path <- "data/aptos.rds"
+path <- "data/aptos.csv"
 if (file.exists(path)) {
-  old <- read_rds(path)
+  old <- read_csv(path)
 } else {
   old <- tibble(id = 0)
 }
@@ -55,18 +62,17 @@ aptos <- data |>
     forRent == TRUE,
     regionName %in% regions,
     parkingSpaces >= 1,
-    totalCost <= 2400
+    totalCost <= 2500
   ) |>
-  print() |>
   mutate(url = glue("https://www.quintoandar.com.br/imovel/{id}/")) |>
   anti_join(old, by = "id") |>
-  select(totalCost, regionName, bedrooms, url) |>
+  select(id, totalCost, regionName, bedrooms, url) |>
   arrange(desc(totalCost)) |>
   print(n = Inf)
 
 old |>
   bind_rows(aptos) |>
-  write_rds(path)
+  write_csv(path)
 
 # Telegram ---------------------------------------------------------------------
 
