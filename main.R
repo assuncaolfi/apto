@@ -60,7 +60,7 @@ aptos <- data |>
   filter(
     bedrooms >= 2,
     forRent == TRUE,
-    regionName %in% regions,
+    # regionName %in% regions,
     parkingSpaces >= 1,
     totalCost <= 2500
   ) |>
