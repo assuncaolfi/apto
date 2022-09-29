@@ -58,7 +58,7 @@ if (file.exists(path)) {
 
 aptos <- data |>
   filter(
-    bedrooms >= 2,
+    bedrooms >= 3,
     forRent == TRUE,
     # regionName %in% regions,
     parkingSpaces >= 1,
