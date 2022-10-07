@@ -10,6 +10,41 @@ library(lubridate)
 library(readr)
 library(telegram)
 library(tidyverse)
+library(vctrs)
+
+# Functions --------------------------------------------------------------------
+
+repair_names <- partial(
+  vec_as_names,
+  repair = "unique",
+  quiet = TRUE
+)
+
+is_interesting <- function(neighbourhood) {
+  neighbourhoods <- c(
+    "Anchieta",
+    "Cidade Jardim",
+    "Colégio Batista",
+    "Cruzeiro",
+    "Funcionários",
+    "Gutierrez",
+    "Horto Florestal",
+    "Luxemburgo",
+    "Padre Eustáquio",
+    "Prado",
+    "Sagrada Família",
+    "Santa Efigênia",
+    "Santa Lúcia",
+    "Santa Tereza",
+    "Santo Antônio",
+    "Savassi",
+    "Serra",
+    "Sion",
+    "São Lucas",
+    "São Pedro"
+  )
+  neighbourhood %in% neighbourhoods
+}
 
 # Wrangle ----------------------------------------------------------------------
 
@@ -22,32 +57,9 @@ data <- "data/url.txt" |>
   chuck("hits") |>
   map("_source") |>
   map(flatten) |>
-  map(
-    as_tibble,
-    .name_repair = ~ vctrs::vec_as_names(
-      ...,
-      repair = "unique",
-      quiet = TRUE
-    )
-  ) |>
+  map(as_tibble, .name_repair = repair_names) |>
   bind_rows()
-
-regions <- c(
-  "Anchieta",
-  "Carmo",
-  "Cidade Jardim",
-  "Cruzeiro",
-  "Floresta",
-  "Luxemburgo",
-  "Prado",
-  "Sagrada Família",
-  "Santa Efigenia",
-  "Santa Tereza",
-  "Santo Antônio",
-  "Sion",
-  "São Lucas",
-  "São Pedro"
-)
+data |> distinct(neighbourhood) |> pull() |> sort() |> dput()
 
 path <- "data/aptos.csv"
 if (file.exists(path)) {
@@ -58,15 +70,14 @@ if (file.exists(path)) {
 
 aptos <- data |>
   filter(
-    bedrooms >= 2,
-    forRent == TRUE,
-    regionName %in% regions,
+    bedrooms >= 3,
+    is_interesting(neighbourhood),
     parkingSpaces >= 1,
-    totalCost <= 2500
+    totalCost <= 2300
   ) |>
   mutate(url = glue("https://www.quintoandar.com.br/imovel/{id}/")) |>
   anti_join(old, by = "id") |>
-  select(id, totalCost, regionName, bedrooms, url) |>
+  select(id, totalCost, neighbourhood, bedrooms, url) |>
   arrange(desc(totalCost)) |>
   print(n = Inf)
 
